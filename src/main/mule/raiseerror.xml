@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="b57c8c32-21da-4f71-83ce-d1ebb28553fb" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<flow name="raiseerrorFlow" doc:id="7f49bd8f-bf98-4254-b757-dbee7071556c" >
+		<http:listener doc:name="Listener" doc:id="d50c005c-1562-4a7c-b4c8-516689d76c16" config-ref="HTTP_Listener_config" path="/testraiseerror">
+			<http:response statusCode="#[vars.httpStatus]" />
+			<http:error-response statusCode="#[vars.httpStatus]">
+				<http:body ><![CDATA[#[payload]]]></http:body>
+			</http:error-response>
+		</http:listener>
+		<choice doc:name="Choice" doc:id="5316c703-b20d-40b9-ba4c-551f9f700786" >
+			<when expression='#[isEmpty(payload.employee_name)]'>
+				<logger level="INFO" doc:name="Logger" doc:id="77ee2603-92d6-49fe-b739-9082f6547b5a" message="BR_RAISE_ERROR"/>
+				<raise-error doc:name="Raise error" doc:id="810bf64f-d1cb-4371-a076-696b54ec1fc5" type="EMPLOYEE:INVALIDRECORD" description="Employee Name Is Null"/>
+			</when>
+			<otherwise >
+				<logger level="INFO" doc:name="Logger" doc:id="2feaeee9-5b41-4257-b2ff-f0d1346c4dc9" message="BR_DEFAULT" />
+				<ee:transform doc:name="Transform Message" doc:id="e9db64eb-f3a0-4192-b4ac-2805ba545e22" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="f013e6da-579a-432a-9532-8a8f02cd974d" type="EMPLOYEE:INVALIDRECORD">
+				<ee:transform doc:name="Transform Message" doc:id="2cc7bb74-48f7-4a36-9efb-bd6ee1dfd5aa" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"error type": error.errorType,
+	"error message":error.description
+}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables >
+						<ee:set-variable variableName="httpStatus" ><![CDATA[400]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+</mule>
