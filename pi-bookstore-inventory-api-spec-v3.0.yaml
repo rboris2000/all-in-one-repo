@@ -1,0 +1,415 @@
+openapi: 3.0.0
+info:
+  title: Bookstore Inventory APIs
+  description: |
+    The Bookstore Inventory API support the online bookstore/library inventory. 
+    The API describe 'book' resource and allow for the following -
+    * retrieve list of books up to a limit at a time, if the limit is specified
+    * create new book
+    * search book by ID
+    * delete book by ID
+  version: 1.0.0
+  termsOfService: 'https://api.travelers.com/termsOfService'
+  contact:
+    name: Some Name
+    url: 'https://travelers.com/api/example'
+    email: some_email@travelers.com
+
+servers:
+  - url: 'https://api.dev.travelers.com/v1'
+    description: Development server
+  - url: 'https://api.qa.travelers.com/v1'
+    description: QA server
+  - url: 'https://api.staging.travelers.com/v1'
+    description: Staging server
+  - url: 'https://api.travelers.com/v1'
+    description: Production server
+
+paths:
+  /healthCheck:
+    get:
+      summary: Checks if the server is running
+      security:
+        - JWTToken: []
+      responses:
+        '200':
+          description: Server is up and running
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/200HealthCheckOK'
+        '503':
+          $ref: '#/components/responses/503ServiceUnavailable'
+  /books:
+    get:
+      summary: >-
+        Returns books available in the book inventory, with limit on the number
+        of the results
+      security:
+        - JWTToken: []
+      description: >
+        Provides a paginated list of books based on the ‘limit’ parameter
+        provided. 
+
+        If no ‘limit’ parameter provided, books are returned in alphabetical
+        order. 
+      operationId: listBooks
+      tags:
+        - books
+      parameters:
+        - $ref: '#/components/parameters/trv-dynatraceParam' #x-dynatrace
+        - $ref: '#/components/parameters/trv-correlationIdParam' #x-trv-correlation-id
+        - $ref: '#/components/parameters/trv-applicationParam' #x-application
+        - $ref: '#/components/parameters/trv-appEnvParam' #x-app-env
+        - $ref: '#/components/parameters/trv-versionParam' #x-trv-version
+        - $ref: '#/components/parameters/correlationIdParam' #x-correlation-id
+        
+        - name: limit
+          in: query
+          description: Number of items returned at a time
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 100
+            format: int32
+      responses:
+        '200':
+          description: Successful request
+          headers:
+            x-next:
+              description: A link to the next page of responses
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Books'
+              example:
+                {
+                  "total_items": 2,
+                  "books" : [
+                    {
+                      "author_name": "Erich Gamma",
+                      "book_title": "Design Patterns",
+                      "pages": 416,
+                      "genre": "Software Architecture",
+                      "id": "0201633612"
+                    },
+                    {
+                      "author_name": "Martin Fowler",
+                      "book_title": "Patterns of Enterprise Application Architecture",
+                      "pages": 560,
+                      "genre": "Software Architecture",
+                      "id": "0321127420"
+                    }
+                  ]
+                }
+
+        '400':
+          $ref: '#/components/responses/400BadRequestError'
+        '401':
+          $ref: '#/components/responses/401UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/403ForbiddenError'
+        '500':
+          $ref: '#/components/responses/500InternalServerError'
+    post:
+      summary: Create a book
+      parameters:
+        - $ref: '#/components/parameters/trv-dynatraceParam' #x-dynatrace
+        - $ref: '#/components/parameters/trv-correlationIdParam' #x-trv-correlation-id
+        - $ref: '#/components/parameters/trv-applicationParam' #x-application
+        - $ref: '#/components/parameters/trv-appEnvParam' #x-app-env
+        - $ref: '#/components/parameters/trv-versionParam' #x-trv-version
+        - $ref: '#/components/parameters/correlationIdParam' #x-correlation-id
+      description: Creates new book in the collection.
+      operationId: createBook
+      tags:
+        - books
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Book'
+      responses:
+        '201':
+          description: Successful request. The book was created.
+        '400':
+          $ref: '#/components/responses/400BadRequestError'
+        '401':
+          $ref: '#/components/responses/401UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/403ForbiddenError'
+        '500':
+          $ref: '#/components/responses/500InternalServerError'
+  '/books/{id}':
+    get:
+      description: Get info about a book by its ID
+      operationId: getBook
+      tags:
+        - books
+      parameters:
+        - in: header
+          name: x-correlation-id
+          schema:
+            type: string
+            format: uuid
+            maxLength: 36
+            pattern: >-
+              ^[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}$
+          required: true
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            maxLength: 13
+            pattern: '^(?=(?:\D*\d){10}(?:(?:\D*\d){3})?$)[\d-]+$'
+      responses:
+        '200':
+          description: Successfully returned book
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Books'
+        '400':
+          $ref: '#/components/responses/400BadRequestError'
+        '401':
+          $ref: '#/components/responses/401UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/403ForbiddenError'
+        '500':
+          $ref: '#/components/responses/500InternalServerError'
+    delete:
+      description: Delete the book with the specified ID
+      operationId: deleteBook
+      tags:
+        - books
+      parameters:        
+        - $ref: '#/components/parameters/trv-dynatraceParam' #x-dynatrace
+        - $ref: '#/components/parameters/trv-correlationIdParam' #x-trv-correlation-id
+        - $ref: '#/components/parameters/trv-applicationParam' #x-application
+        - $ref: '#/components/parameters/trv-appEnvParam' #x-app-env
+        - $ref: '#/components/parameters/trv-versionParam' #x-trv-version
+        - $ref: '#/components/parameters/correlationIdParam' #x-correlation-id
+        - name: id
+          in: path
+          description: ID of the book to delete
+          required: true
+          schema:
+            type: string
+            maxLength: 13
+            pattern: '^(?=(?:\D*\d){10}(?:(?:\D*\d){3})?$)[\d-]+$'
+      responses:
+        '201':
+          description: Book successfully removed
+        '404':
+          $ref: '#/components/responses/404NotFoundError'
+        '500':
+          $ref: '#/components/responses/500InternalServerError'
+
+security:
+  - JWTToken: []
+    clientid: []
+    clientsecret: []
+
+components:
+  securitySchemes:
+    JWTToken:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    clientid:
+      type: apiKey
+      in: header
+      name: client_id
+    clientsecret:
+      type: apiKey
+      in: header
+      name: client_secret
+  schemas:
+    Book:
+      type: object
+      additionalProperties: false
+      properties:
+        author_name:
+          type: string
+          pattern: '^([A-Z][^A-Z(]+)([(A-Z].+)?$'
+        book_title:
+          type: string
+        pages:
+          type: integer
+        genre:
+          type: string
+        id:
+          type: string
+    Books:
+      type: object
+      additionalProperties: false
+      properties:
+        total_items:
+          type: integer
+        books:
+          type: array
+          items:
+            $ref: "#/components/schemas/Book"        
+    200HealthCheckOK:
+      type: object
+      additionalProperties: false
+      properties:
+        status:
+          type: string
+          enum:
+            - pass
+            - fail
+        applicationID:
+          type: string
+          maxLength: 36
+          pattern: >-
+            ^[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}$
+  ####################
+  # Common request headers
+  ####################
+  parameters:
+    trv-dynatraceParam:
+      name: x-dynatrace
+      in: header
+      schema:
+            type: string
+            minLength: 5
+            maxLength: 10000
+            pattern: >-
+              ^[A-Za-z0-9]{5,10000}$                       
+      required: true
+      description: Used for tracing service and method calls
+    trv-correlationIdParam:
+      name: x-trv-correlation-id
+      in: header
+      schema:
+            type: string
+            minLength: 5
+            maxLength: 42
+            pattern: >-
+              ^[A-Za-z0-9]{5,42}$ 
+      required: true
+      description: assign receiving correlationId/transaction-id, or set to be equal to x-correlation-od if there's no existing transaction context
+    trv-applicationParam:
+      name: x-application
+      in: header
+      schema:
+            type: string
+            minLength: 5  
+            maxLength: 42
+            pattern: >-
+              ^[A-Za-z0-9]{5,42}$
+      required: true
+      description: Indicated which application/api we're in
+    trv-appEnvParam:
+      name: x-app-env
+      in: header
+      schema:
+            type: string
+            minLength: 5
+            maxLength: 42
+            pattern: >-
+              ^[A-Za-z0-9]{5,42}$  
+      required: false
+      description: specifies which environment the api is running in
+    trv-versionParam:
+      name: x-trv-version
+      in: header
+      schema:
+            type: string
+            minLength: 1
+            maxLength: 42  
+            pattern: >-
+              ^[A-Za-z0-9]{1,42}$
+      required: false
+      description: specifies which version the api is running
+    correlationIdParam:
+      name: x-correlation-id
+      in: header
+      schema:
+            type: string
+            format: uuid
+            maxLength: 36
+            pattern: >-
+              ^[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}$
+      required: false
+      description: local correlationId for tracking
+
+  responses:
+    400BadRequestError:
+      description: Bad request error
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                format: int32
+              message:
+                type: string
+    401UnauthorizedError:
+      description: Unauthorized request error
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                format: int32
+              message:
+                type: string
+    403ForbiddenError:
+      description: Forbidden request error
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                format: int32
+              message:
+                type: string
+    404NotFoundError:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                format: int32
+              message:
+                type: string
+    500InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                format: int32
+              message:
+                type: string
+    503ServiceUnavailable:
+      description: Service unavailable error
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                format: int32
+              message:
+                type: string
